@@ -1,0 +1,27 @@
+{
+  "name": "sycamore-v2",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "js-nacl": "^1.4.0",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.15",
+    "@types/dotenv": "^8.2.0",
+    "@types/express": "^4.17.20",
+    "@types/node": "^20.8.6",
+    "prisma": "^5.4.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  }
+}
