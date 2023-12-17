@@ -1,12 +1,11 @@
 import express from 'express';
-import clientRouter from './client';
-import serverRouter from './server';
+import { serverInfo } from '../lib/serverInfo';
 
 const router = express.Router();
 
-router.use('/syc/client', clientRouter);
-router.use('/syc/server', serverRouter);
-
+router.get('/serverinfo', (req, res) => {
+    res.json({...serverInfo, success: true});
+})
 
 router.get('/', (req, res) => {
     res.send('hello world');
