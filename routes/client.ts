@@ -7,11 +7,11 @@ import { encodeIdentity } from '../lib/identity';
 import { serverInfo } from '../lib/serverInfo';
 import { nacl } from '../lib/crypt';
 import { BoxPublicKey } from 'js-nacl';
+import { genAndStoreToken } from '../lib/authTokens';
 
 const router = express.Router();
 
-// Authentication
-
+// AUTHENTICATION
 router.post('/createidentity', async (req, res) => {
     const pseudonym: string = req.body.pseudonym; // Proposed pseudonym
     const pkey: string = req.body.pkey; // Client-generated public encryption key
@@ -43,12 +43,8 @@ router.post('/createidentity', async (req, res) => {
 
 const authStrings = new Map();
 
-// TODO; fix this 'crypto_box_seal expected 32-byte pk but got length 64'
 router.post('/requestauth', async (req, res) => {
     const pseudonym: string = req.body.pseudonym;
-
-    // PSEUDONYM VALIDATION
-    // ...
 
     // GET KEYS
     const identity = await db.get(`/users/${pseudonym}`);
@@ -59,12 +55,13 @@ router.post('/requestauth', async (req, res) => {
     const skey: string = identity.skey;
 
     const random = nacl.random_bytes(32);
+    console.log('RAND_STRING', nacl.to_hex(random));
     
     try {
 
         const encryptedRandomString = nacl.to_hex(nacl.crypto_box_seal(random, pkeyBytes));
 
-        authStrings.set(pseudonym, encryptedRandomString);
+        authStrings.set(pseudonym, nacl.to_hex(random));
 
         res.status(200).json({
             rand_string: encryptedRandomString,
@@ -88,19 +85,109 @@ router.post('/verifyauth', async (req, res) => {
     const pseudonym: string = req.body.pseudonym;
     const decryptString: string = req.body.decrypt_string;
 
+    // Rate limit verification attempts to slow brute forces
+    const attempts: {
+        lastAttempt: number,
+        numAttempts: number
+    } = authAttempts.get(pseudonym);
+    if (attempts) {
+        // New attempt
+        authAttempts.set(pseudonym, {
+            lastAttempt: Date.now(),
+            numAttempts: attempts.numAttempts + 1
+        });
+
+
+        // Rate limit
+        if (attempts.numAttempts <= 5 && Date.now() < attempts.lastAttempt + 10000 /* 10sec */) {
+            return sycError(res, 'A006', 'Wait 10 seconds');
+        } else if (attempts.numAttempts > 5 && Date.now() < attempts.lastAttempt + 3000000 /* 30min */) {
+            return sycError(res, 'A006', 'Wait 30 minutes');
+        }
+
+        
+    } else {
+        // First attempt
+        authAttempts.set(pseudonym, {
+            lastAttempt: Date.now(),
+            numAttempts: 1
+        });
+    }
+
     const originalString = authStrings.get(pseudonym);
-    if (!originalString) return sycError(res, 'A004');
+    if (!originalString) return sycError(res, 'A004'); // Pseudonym invalid
 
-    if (originalString !== decryptString) return sycError(res, 'A003');
+    authStrings.delete(pseudonym); // Clear to avoid brute force attacks
 
-    // Generate auth tokens here
+    if (originalString !== decryptString) return sycError(res, 'A003'); // Verification failed
+
+    // Attempt succeeded
+    authAttempts.set(pseudonym, {
+        lastAttempt: Date.now(),
+        numAttempts: 0
+    });
+
+    // Generate auth token
+    const token = await genAndStoreToken(pseudonym);
+
+    res.status(200).json({
+        success: true,
+        auth_token: token.token
+    });
+
 });
 
 
-// Messaging
+// KEY MANAGEMENT
+router.post('/getkeys', async (req, res) => {
+    const includeSkey: boolean = req.body.skey as boolean || false;
+    const pseudonym: string = req.body.pseudonym;
+
+    const identity = await db.get(`/users/${pseudonym}`);
+    const pkey = identity.pkey;
+    if (!pkey) return sycError(res, 'A005'); // Invalid keypair
+    
+    res.status(200).json({
+        success: true,
+        pkey: identity.pkey,
+        skey: includeSkey ? identity.skey : null
+    });
+});
+
+router.post('/updatekeys', async (req, res) => {
+    const skey: string = req.body.skey;
+    const pkey: string = req.body.pkey;
+    const pseudonym: string = req.body.pseudonym;
+
+    if (!(skey && pkey)) return sycError(res, 'A005'); // Invalid keypair
+
+    await db.set(`/users/${pseudonym}/skey`, skey);
+    await db.set(`/users/${pseudonym}/pkey`, pkey);
+
+    res.status(200).json({
+        success: true
+    });
+});
+
+
+// CHAT MANAGEMENT
+router.post('/createchat', async (req, res) => {
+    const chatID: string = req.body.id;
+    const members: string[] = req.body.members;
+    const skey: string = req.body.skey;
+
+    if (!(chatID && members && skey)) {}
+});
+
+
+// MESSAGING
 router.post('/sendmessage', (req, res) => {
     const message = req.body.message as SycMessage;
 
+});
+
+router.post('/', (req, res) => {
+    res.send('Hello world');
 });
 
 

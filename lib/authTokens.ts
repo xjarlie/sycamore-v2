@@ -1,5 +1,7 @@
+import { NextFunction, Request, Response } from "express";
 import db from "./conn";
-import crypto from "crypto";
+import crypto, { pseudoRandomBytes } from "crypto";
+import { sycError } from "./error";
 
 
 function generateAuthToken(lasts: number =2592000000 /* 30 days */) {
@@ -8,10 +10,37 @@ function generateAuthToken(lasts: number =2592000000 /* 30 days */) {
     return { token: tokenData, expires };
 }
 
-export function genAndStoreToken(lasts: number = 86400000 /* 1 day */) {
-    // TODO: use generateAuthToken to create token, then store in database and return value
+export async function genAndStoreToken(pseudonym: string, lasts: number = 43200000 /* 12 hours */) {
+    const authToken = generateAuthToken(lasts);
+    await db.set(`/users/${pseudonym}/authToken`, authToken);
+    return authToken;
 }
 
-export function checkAuthToken(pseudonym: string, givenToken: string) {
-    // TODO: compare given token against database stored token for given pseudonym
+async function checkAuthToken(pseudonym: string, givenToken: string): Promise<boolean> {
+
+    const dbToken = await db.get(`/users/${pseudonym}/authToken`);
+    if (!dbToken) return false;
+    if (dbToken.expires < Date.now()) return false;
+
+    return dbToken.token === givenToken;
+
+}
+
+export async function verifyToken(req: Request, res: Response, next: NextFunction) {
+    if (req.path.includes('createidentity') || req.path.includes('requestauth') || req.path.includes('verifyauth')) {
+        return next();
+    }
+
+    const givenToken: string = req.body.auth_token;
+    if (!givenToken) return sycError(res, 'A003', 'Auth token required');
+
+    const pseudonym: string = req.body.pseudonym;
+    if (!pseudonym) return sycError(res, 'A003', 'Pseudonym required');
+
+    if (await checkAuthToken(pseudonym, givenToken)) {
+        next();
+    } else {
+        return sycError(res, 'A003');
+    }
+
 }
