@@ -55,21 +55,45 @@ router.post('/requestauth', async (req, res) => {
     if (!identity) return sycError(res, 'A001');
 
     const pkey: string = identity.pkey;
-    const arrPkey: BoxPublicKey = nacl.encode_utf8(pkey);
+    const pkeyBytes: BoxPublicKey = nacl.from_hex(pkey);
     const skey: string = identity.skey;
+
+    const random = nacl.random_bytes(32);
     
     try {
-        const randomArr = nacl.random_bytes(64);
-        const encryptedRandomString = nacl.crypto_box_seal(randomArr, arrPkey);
+
+        const encryptedRandomString = nacl.to_hex(nacl.crypto_box_seal(random, pkeyBytes));
+
+        authStrings.set(pseudonym, encryptedRandomString);
 
         res.status(200).json({
-            str: encryptedRandomString
+            rand_string: encryptedRandomString,
+            skey
         });
     } catch (e) {
         console.log(e);
+        res.json({
+            success: false,
+            error: {
+                code: 'A000',
+                message: e
+            }
+        });
     }
-    
+});
 
+const authAttempts = new Map();
+
+router.post('/verifyauth', async (req, res) => {
+    const pseudonym: string = req.body.pseudonym;
+    const decryptString: string = req.body.decrypt_string;
+
+    const originalString = authStrings.get(pseudonym);
+    if (!originalString) return sycError(res, 'A004');
+
+    if (originalString !== decryptString) return sycError(res, 'A003');
+
+    // Generate auth tokens here
 });
 
 
