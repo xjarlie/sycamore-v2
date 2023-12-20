@@ -174,9 +174,18 @@ router.post('/updatekeys', async (req, res) => {
 router.post('/createchat', async (req, res) => {
     const chatID: string = req.body.id;
     const members: string[] = req.body.members;
-    const skey: string = req.body.skey;
+    const ckey: string = req.body.ckey;
 
-    if (!(chatID && members && skey)) {}
+    if (!(chatID && members && ckey)) return sycError(res, 'B003');
+
+    // Test whether chat ID already exists
+
+    // Test whether members list contains creator
+
+    // Store chat metadata in /chats/:chatID
+    // Store skey in /users/:pseudonym/chatKeys/:chatID
+    // Add first message to chat, like ':pseudonym just created the chat!' or something
+    // And send the first message to all members
 });
 
 
