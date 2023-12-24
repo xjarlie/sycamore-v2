@@ -253,10 +253,16 @@ router.post('/getmessages', async (req, res) => {
     let messages: SycMessage[] = chat.messages || [];
 
     if (since > 0) {
-        // TODO: Get all messages since timestamp
+        // Get all messages since timestamp
+        messages = messages.filter((m) => {
+            m.sent_timestamp > since
+        });
     }
 
-
+    res.status(200).json({
+        success: true,
+        messages: messages
+    });
 });
 
 router.post('/', (req, res) => {
