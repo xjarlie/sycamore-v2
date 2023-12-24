@@ -216,6 +216,7 @@ router.post('/createchat', async (req, res) => {
 
 
 // MESSAGING
+// TODO - update this so that it checks whether a 'to' field is provided - if so
 router.post('/sendmessage', async (req, res) => {
     const message = req.body.message as SycMessage;
     const pseudonym: string = req.body.pseudonym;
