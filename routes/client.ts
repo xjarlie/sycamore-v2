@@ -8,7 +8,7 @@ import { serverInfo } from '../lib/serverInfo';
 import { nacl } from '../lib/crypt';
 import { BoxPublicKey } from 'js-nacl';
 import { genAndStoreToken } from '../lib/authTokens';
-import { sendMessageToChat } from '../lib/messaging';
+import { sendMessage, sendMessageToChat } from '../lib/messaging';
 
 const router = express.Router();
 
@@ -54,7 +54,7 @@ router.post('/requestauth', async (req, res) => {
 
     const random = nacl.random_bytes(32);
     console.log('RAND_STRING', nacl.to_hex(random));
-    
+
     try {
 
         const encryptedRandomString = nacl.to_hex(nacl.crypto_box_seal(random, pkeyBytes));
@@ -102,7 +102,7 @@ router.post('/verifyauth', async (req, res) => {
             return sycError(res, 'A006', 'Wait 30 minutes');
         }
 
-        
+
     } else {
         // First attempt
         authAttempts.set(pseudonym, {
@@ -142,7 +142,7 @@ router.post('/getkeys', async (req, res) => {
     const identity = await db.get(`/users/${pseudonym}`);
     const pkey = identity.pkey;
     if (!pkey) return sycError(res, 'A005'); // Invalid keypair
-    
+
     res.status(200).json({
         success: true,
         pkey: identity.pkey,
@@ -216,7 +216,7 @@ router.post('/createchat', async (req, res) => {
 
 
 // MESSAGING
-// TODO - update this so that it checks whether a 'to' field is provided - if so
+// TODO - allow for sending one message to multiple identities if the client does not specify one
 router.post('/sendmessage', async (req, res) => {
     const message = req.body.message as SycMessage;
     const pseudonym: string = req.body.pseudonym;
@@ -229,10 +229,17 @@ router.post('/sendmessage', async (req, res) => {
         // TODO: process auxiliary messages
     }
 
-    const chat = await db.get(`/users/${pseudonym}/chats/${message.chat}`);
-    const msgSent = await sendMessageToChat(message, chat);
-    if (msgSent.success === false) {
-        return sycError(res, msgSent.error?.code as string, msgSent.error?.message);
+    if (message.to) {
+        const msgSent = await sendMessage(message);
+        if (msgSent.success === false) {
+            return sycError(res, msgSent.error?.code as string, msgSent.error?.message);
+        }
+    } else {
+        const chat: SycChat = await db.get(`/users/${pseudonym}/chats/${message.chat}`);
+        const msgSent = await sendMessageToChat(message, chat);
+        if (msgSent.success === false) {
+            return sycError(res, msgSent.error?.code as string, msgSent.error?.message);
+        }
     }
 
     res.status(200).json({
@@ -251,13 +258,26 @@ router.post('/getmessages', async (req, res) => {
         return sycError(res, 'B001');
     }
 
-    let messages: SycMessage[] = chat.messages || [];
+    // TODO: GET MESSAGES AS ARRAY RATEHR THAN OBJECT USING 'ordered_list' database method
+
+    const messages: SycMessage[] = Object.values(chat.messages) || [];
+    // TODO: sort by timestamp
+    let sortedMessages = messages.sort((a, b) => {
+        return b.sent_timestamp - a.sent_timestamp
+    });
 
     if (since > 0) {
         // Get all messages since timestamp
-        messages = messages.filter((m) => {
-            m.sent_timestamp > since
-        });
+        let lastIndex = 0;
+        let i = 0;
+        for (const message of sortedMessages) {
+            if (message.sent_timestamp < since) {
+                lastIndex = i-1;
+                break;
+            }
+            i++;
+        }
+        sortedMessages = messages.slice(0, lastIndex);
     }
 
     res.status(200).json({
