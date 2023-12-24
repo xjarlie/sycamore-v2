@@ -48,8 +48,8 @@ async function genKeys() {
     console.log('BOX KEYPAIR', nacl.to_hex(keypair.boxPk), nacl.to_hex(keypair.boxSk));
     
 
-    const signKeypair = nacl.crypto_sign_keypair();
-    console.log('SIGN KEYPAIR', nacl.to_hex(signKeypair.signPk), nacl.to_hex(signKeypair.signSk));
+    //const signKeypair = nacl.crypto_sign_keypair();
+    //console.log('SIGN KEYPAIR', nacl.to_hex(signKeypair.signPk), nacl.to_hex(signKeypair.signSk));
 }
 
 //genKeys();
@@ -59,10 +59,10 @@ async function decrypt() {
     const nacl = await nacl_factory.instantiate(()=>0);
 
     try {
-        const pk = nacl.from_hex('2981f739e053a295d8adde574ecb669775c6a557704137961760aec5b73f407a');
-        const sk = nacl.from_hex('c484066fa34d380d2a6ce8b960323dd89afe8cf929dd7aa8370dd432596ee3b5');
+        const pk = nacl.from_hex('390034542201ad77e3c20f7360d484e55bae068edc9e579dcb19cc535ed0361c');
+        const sk = nacl.from_hex('86d0cefa0a7164aad4573420ae82d86f1be5cec1ed1c233c4d1d4a531ee1ef7e');
 
-        const packetStr = '99709571e87ab2a0c840b9a628037151631b6923f24372a34409accdb34f17129733aa80d38f8b039e793b9dc73c56b2858b0c745cf6d082a44dcaab69f887eb8259562303cef25abdf665a0aaf4baf2';
+        const packetStr = '7d3d019aec15ad7d95b5f23c38ca283cde8a48bda2488baacfe213b3c97fbe0e1f688633137b3dac4b165052b98e0a525403c4ab6366728e71b631a2cf878d338030da998aac6500a76263a3cfb8ba6c';
         const packet = nacl.from_hex(packetStr);
         const decr = nacl.crypto_box_seal_open(packet, pk, sk);
         console.log(decr);

@@ -1,12 +1,13 @@
 export type SycMessage = {
-    from: String,
-    to?: String,
-    chat: String,
-    content: String,
-    sent_timestamp: Number,
-    onetime?: Number,
-    auxiliary: Boolean,
-    encrypted: Boolean
+    from: string,
+    to?: string,
+    chat: string,
+    content: string,
+    sent_timestamp: number,
+    onetime?: number,
+    auxiliary: boolean,
+    encrypted: boolean,
+    id: string
 }
 
 export type SycIdentity = {
@@ -17,6 +18,7 @@ export type SycIdentity = {
 export type SycChat = {
     id: string,
     name: string,
-    members: string[] | SycIdentity[],
-    skey: string
+    members: string[],
+    ckey?: string,
+    messages?: SycMessage[]
 }

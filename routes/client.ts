@@ -1,13 +1,14 @@
 import express from 'express';
 import crypto from 'crypto';
-import { SycIdentity, SycMessage } from '../lib/types';
+import { SycChat, SycIdentity, SycMessage } from '../lib/types';
 import db from '../lib/conn';
 import { sycError } from '../lib/error';
-import { encodeIdentity } from '../lib/identity';
+import { decodeIdentities, encodeIdentity } from '../lib/identity';
 import { serverInfo } from '../lib/serverInfo';
 import { nacl } from '../lib/crypt';
 import { BoxPublicKey } from 'js-nacl';
 import { genAndStoreToken } from '../lib/authTokens';
+import { sendMessageToChat } from '../lib/messaging';
 
 const router = express.Router();
 
@@ -15,7 +16,6 @@ const router = express.Router();
 router.post('/createidentity', async (req, res) => {
     const pseudonym: string = req.body.pseudonym; // Proposed pseudonym
     const pkey: string = req.body.pkey; // Client-generated public encryption key
-    const skey: string = req.body.skey; // Client-generated private encryption key (encrypted by client)
 
     // PSEUDONYM VALIDATION
     if (pseudonym.length < 3 || pseudonym.length > 32) return sycError(res, 'A004', 'Pseudonym out of bounds');
@@ -28,8 +28,7 @@ router.post('/createidentity', async (req, res) => {
     // CREATE IDENTITY
     await db.set(`/users/${pseudonym}`, {
         pseudonym,
-        pkey,
-        skey
+        pkey
     });
 
     res.status(200).json({
@@ -52,7 +51,6 @@ router.post('/requestauth', async (req, res) => {
 
     const pkey: string = identity.pkey;
     const pkeyBytes: BoxPublicKey = nacl.from_hex(pkey);
-    const skey: string = identity.skey;
 
     const random = nacl.random_bytes(32);
     console.log('RAND_STRING', nacl.to_hex(random));
@@ -65,7 +63,6 @@ router.post('/requestauth', async (req, res) => {
 
         res.status(200).json({
             rand_string: encryptedRandomString,
-            skey
         });
     } catch (e) {
         console.log(e);
@@ -140,7 +137,6 @@ router.post('/verifyauth', async (req, res) => {
 
 // KEY MANAGEMENT
 router.post('/getkeys', async (req, res) => {
-    const includeSkey: boolean = req.body.skey as boolean || false;
     const pseudonym: string = req.body.pseudonym;
 
     const identity = await db.get(`/users/${pseudonym}`);
@@ -150,18 +146,15 @@ router.post('/getkeys', async (req, res) => {
     res.status(200).json({
         success: true,
         pkey: identity.pkey,
-        skey: includeSkey ? identity.skey : null
     });
 });
 
 router.post('/updatekeys', async (req, res) => {
-    const skey: string = req.body.skey;
     const pkey: string = req.body.pkey;
     const pseudonym: string = req.body.pseudonym;
 
-    if (!(skey && pkey)) return sycError(res, 'A005'); // Invalid keypair
+    if (!pkey) return sycError(res, 'A005'); // Invalid keypair
 
-    await db.set(`/users/${pseudonym}/skey`, skey);
     await db.set(`/users/${pseudonym}/pkey`, pkey);
 
     res.status(200).json({
@@ -174,24 +167,95 @@ router.post('/updatekeys', async (req, res) => {
 router.post('/createchat', async (req, res) => {
     const chatID: string = req.body.id;
     const members: string[] = req.body.members;
-    const ckey: string = req.body.ckey;
+    const ckey: string = req.body.ckey; // Chat's secret key, encrypted client-side
+    const pseudonym: string = req.body.pseudonym;
+    const name: string = req.body.name || 'New Chat';
 
     if (!(chatID && members && ckey)) return sycError(res, 'B003');
 
     // Test whether chat ID already exists
+    const exists = await db.get(`/chats/${chatID}`);
+    if (exists) return sycError(res, 'B002');
 
     // Test whether members list contains creator
+    if (!members.includes(`@${pseudonym}~${serverInfo.address}`)) {
+        members.push(pseudonym);
+    }
 
-    // Store chat metadata in /chats/:chatID
-    // Store skey in /users/:pseudonym/chatKeys/:chatID
+
+
+    // Store chat data in /users/:pseudonym/chatKeys/:chatID
+    const chat = {
+        id: chatID,
+        ckey: ckey,
+        name: name,
+        members: members
+    }
+
+    await db.set(`/users/${pseudonym}/chats/${chatID}`, chat);
+
     // Add first message to chat, like ':pseudonym just created the chat!' or something
-    // And send the first message to all members
+    const firstMessage: SycMessage = {
+        from: `@${pseudonym}~${serverInfo.address}`,
+        chat: chatID,
+        sent_timestamp: Date.now(),
+        encrypted: false,
+        auxiliary: false,
+        content: `${pseudonym} just creaated the chat '${name}'!`,
+        id: nacl.to_hex(nacl.random_bytes(8))
+    };
+    const msgSent = await sendMessageToChat(firstMessage, chat);
+    if (msgSent.success === false) {
+        console.log(msgSent.error);
+    }
+
+    res.status(200).json({
+        success: true
+    })
 });
 
 
 // MESSAGING
-router.post('/sendmessage', (req, res) => {
+router.post('/sendmessage', async (req, res) => {
     const message = req.body.message as SycMessage;
+    const pseudonym: string = req.body.pseudonym;
+
+    if (message.auxiliary === null || !message.chat || !message.content || message.encrypted === null || !message.from || (message.encrypted && !message.onetime) || !message.sent_timestamp) {
+        return sycError(res, 'C001');
+    }
+
+    if (message.auxiliary && !message.encrypted) {
+        // TODO: process auxiliary messages
+    }
+
+    const chat = await db.get(`/users/${pseudonym}/chats/${message.chat}`);
+    const msgSent = await sendMessageToChat(message, chat);
+    if (msgSent.success === false) {
+        return sycError(res, msgSent.error?.code as string, msgSent.error?.message);
+    }
+
+    res.status(200).json({
+        success: true,
+    })
+
+});
+
+router.post('/getmessages', async (req, res) => {
+    const chatID: string = req.body.chat;
+    const since: number = req.body.since || 0;
+    const pseudonym: string = req.body.pseudonym;
+
+    const chat: SycChat = await db.get(`/users/${pseudonym}/chats/${chatID}`);
+    if (!chat) {
+        return sycError(res, 'B001');
+    }
+
+    let messages: SycMessage[] = chat.messages || [];
+
+    if (since > 0) {
+        // TODO: Get all messages since timestamp
+    }
+
 
 });
 
