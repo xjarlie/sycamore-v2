@@ -20,5 +20,5 @@ export type SycChat = {
     name: string,
     members: string[],
     ckey?: string,
-    messages?: SycMessage[]
+    messages?: { [key: string]: SycMessage }
 }

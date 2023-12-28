@@ -59,10 +59,10 @@ async function decrypt() {
     const nacl = await nacl_factory.instantiate(()=>0);
 
     try {
-        const pk = nacl.from_hex('390034542201ad77e3c20f7360d484e55bae068edc9e579dcb19cc535ed0361c');
-        const sk = nacl.from_hex('86d0cefa0a7164aad4573420ae82d86f1be5cec1ed1c233c4d1d4a531ee1ef7e');
+        const pk = nacl.from_hex('e16c56306953681080aa35bd0ff39c7111b055af9d3cefefa9e83d830334d413');
+        const sk = nacl.from_hex('2a3f42efa44e42ee394aae93030839a5cc53f2f3656316a18e47836c30dcd53e');
 
-        const packetStr = '7d3d019aec15ad7d95b5f23c38ca283cde8a48bda2488baacfe213b3c97fbe0e1f688633137b3dac4b165052b98e0a525403c4ab6366728e71b631a2cf878d338030da998aac6500a76263a3cfb8ba6c';
+        const packetStr = 'b734a96ca1db3685c2d2e8fdaa268593c87562f51c5c5c49f1d743d80e405344d3f23bc4c43a81189d048cc89f20d05a086c07c9b641a1aab6128a00d63313da61d8bd32a25955a5e5a8243659d101ec';
         const packet = nacl.from_hex(packetStr);
         const decr = nacl.crypto_box_seal_open(packet, pk, sk);
         console.log(decr);

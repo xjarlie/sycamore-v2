@@ -56,7 +56,7 @@ router.post('/requestauth', async (req, res) => {
     console.log('RAND_STRING', nacl.to_hex(random));
 
     try {
-
+        // @ts-ignore
         const encryptedRandomString = nacl.to_hex(nacl.crypto_box_seal(random, pkeyBytes));
 
         authStrings.set(pseudonym, nacl.to_hex(random));
@@ -258,26 +258,22 @@ router.post('/getmessages', async (req, res) => {
         return sycError(res, 'B001');
     }
 
-    // TODO: GET MESSAGES AS ARRAY RATEHR THAN OBJECT USING 'ordered_list' database method
-
-    const messages: SycMessage[] = Object.values(chat.messages) || [];
-    // TODO: sort by timestamp
-    let sortedMessages = messages.sort((a, b) => {
-        return b.sent_timestamp - a.sent_timestamp
-    });
+    // Messages as an array, 
+    let messages: SycMessage[] = await db.orderedList(`/users/${pseudonym}/chats/${chatID}/messages`, 'sent_timestamp', 'desc');
 
     if (since > 0) {
         // Get all messages since timestamp
-        let lastIndex = 0;
+        let lastIndex = -1;
         let i = 0;
-        for (const message of sortedMessages) {
+        for (const message of messages) {
             if (message.sent_timestamp < since) {
-                lastIndex = i-1;
+                lastIndex = i;
                 break;
             }
             i++;
         }
-        sortedMessages = messages.slice(0, lastIndex);
+        if (lastIndex === -1) lastIndex = messages.length;
+        messages = messages.slice(0, lastIndex);
     }
 
     res.status(200).json({

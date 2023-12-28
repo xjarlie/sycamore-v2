@@ -115,6 +115,15 @@ export async function receiveMessage(message: SycMessage): Promise<ChatReturn> {
         }
     }
 
+    if (chat.messages && chat.messages[message.id]) {
+        return {
+            success: false,
+            error: {
+                code: 'C004'
+            }
+        }
+    }
+
     // Store message under /users/:pseudonym/chats/:chatID/messages
     await db.set(`/users/${recipient.pseudonym}/chats/${message.chat}/messages/${message.id}`, message);
 
