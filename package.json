@@ -9,7 +9,7 @@
     "dev": "nodemon -e ts index.ts",
     "build": "npm run ts-build && npm run docker-build",
     "ts-build": "npx tsc",
-    "docker-build": "docker build . -t xjarlie/sycamore:2.0.0-alpha."
+    "docker-build": "docker build . -t xjarlie/sycamore:2.0.0-alpha"
   },
   "author": "",
   "license": "ISC",
