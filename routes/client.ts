@@ -201,7 +201,7 @@ router.post('/createchat', async (req, res) => {
         sent_timestamp: Date.now(),
         encrypted: false,
         auxiliary: false,
-        content: `${pseudonym} just creaated the chat '${name}'!`,
+        content: `${pseudonym} just created the chat '${name}'!`,
         id: nacl.to_hex(nacl.random_bytes(8))
     };
     const msgSent = await sendMessageToChat(firstMessage, chat);

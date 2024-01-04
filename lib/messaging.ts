@@ -87,6 +87,8 @@ export async function receiveMessage(message: SycMessage): Promise<ChatReturn> {
 
     if (message.auxiliary && !message.encrypted) {
         // TODO: process auxiliary messages
+
+        // High priority: chataccess/invite messages
     }
 
     // Assume here (after processing auxiliary) that chat should have been created and members should be correct
