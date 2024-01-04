@@ -136,7 +136,7 @@ router.post('/verifyauth', async (req, res) => {
 
 
 // KEY MANAGEMENT
-router.post('/getkeys', async (req, res) => {
+router.post('/getkey', async (req, res) => {
     const pseudonym: string = req.body.pseudonym;
 
     const identity = await db.get(`/users/${pseudonym}`);
@@ -149,7 +149,7 @@ router.post('/getkeys', async (req, res) => {
     });
 });
 
-router.post('/updatekeys', async (req, res) => {
+router.post('/updatekey', async (req, res) => {
     const pkey: string = req.body.pkey;
     const pseudonym: string = req.body.pseudonym;
 
@@ -212,6 +212,100 @@ router.post('/createchat', async (req, res) => {
     res.status(200).json({
         success: true
     })
+});
+
+router.post('/updatechat', async (req, res) => {
+    const pseudonym: string = req.body.pseudonym;
+
+    const chatID: string = req.body.id;
+    const members: string[] = req.body.members || [];
+    const ckey: string = req.body.ckey || '';
+
+    if (!chatID || (members.length === 0 && ckey === '')) {
+        return sycError(res, 'B003', 'Missing: id, members or ckey');
+    }
+
+    const chat: SycChat = await db.get(`/users/${pseudonym}/chats/${chatID}`);
+
+    if (!chat) {
+        return sycError(res, 'B001');
+    }
+
+    try {
+        if (members.length > 0) {
+            await db.set(`/users/${pseudonym}/chats/${chatID}/members`, members);
+        }
+    
+        if (ckey !== '') {
+            await db.set(`/users/${pseudonym}/chats/${chatID}/ckey`, ckey);
+        }
+    } catch (e) {
+        res.status(200).json({
+            success: false,
+            error: {
+                code: 'A000',
+                message: e
+            }
+        });
+    }
+
+    res.status(200).json({
+        success: true
+    })
+
+});
+
+router.post('/chatdata', async (req, res) => {
+    const pseudonym: string = req.body.pseudonym;
+    const chatID: string = req.body.id || '';
+
+    type ChatData = {
+        id: string,
+        members: string[],
+        name: string,
+        ckey?: string
+    }
+
+    if (chatID !== '') {
+        const chat: SycChat = await db.get(`/users/${pseudonym}/chats/${chatID}`);
+
+        if (!chat) {
+            return sycError(res, 'B001');
+        }
+
+        // Extract only metadata from chat
+        const chatData: ChatData = {
+            id: chat.id,
+            members: chat.members,
+            name: chat.name,
+            ckey: chat.ckey
+        };
+
+        res.status(200).json({
+            success: true,
+            chats: [
+                chatData 
+            ]
+        });
+    } else {
+        const chats: SycChat[] = await db.orderedList(`/users/${pseudonym}/chats`, 'id', 'asc');
+
+        // Extract only metadata from each chat
+        const chatsData: ChatData[] = [];
+        for (const chat of chats) {
+            chatsData.push({
+                id: chat.id,
+                members: chat.members,
+                name: chat.name,
+                ckey: chat.ckey
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            chats: chatsData
+        });
+    }
 });
 
 
