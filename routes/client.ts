@@ -22,7 +22,7 @@ router.post('/createidentity', async (req, res) => {
     if (pseudonym.includes('~') || pseudonym.includes('@') || pseudonym.includes(',') || pseudonym.includes(':') || pseudonym.includes('=')) return sycError(res, 'A004', 'Pseudonym includes illegal characters');
     if (await db.get(`/users/${pseudonym}`)) return sycError(res, 'A002');
 
-    // KEYPAIR VALIDATION
+    // TODO: KEYPAIR VALIDATION
     // ...
 
     // CREATE IDENTITY
@@ -38,6 +38,20 @@ router.post('/createidentity', async (req, res) => {
             origin: serverInfo.address
         })
     });
+});
+
+router.post('/pseudonymavailable', async (req, res)  => {
+    const pseudonym: string = req.body.pseudonym;
+
+    if (!pseudonym) return sycError(res, 'A004');
+    if (pseudonym.length < 3 || pseudonym.length > 32) return sycError(res, 'A004', 'Pseudonym out of bounds');
+    if (pseudonym.includes('~') || pseudonym.includes('@') || pseudonym.includes(',') || pseudonym.includes(':') || pseudonym.includes('=')) return sycError(res, 'A004', 'Pseudonym includes illegal characters');
+    if (await db.get(`/users/${pseudonym}`)) return sycError(res, 'A002');
+
+    res.status(200).json({
+        success: true
+    });
+
 });
 
 const authStrings = new Map();
@@ -62,6 +76,7 @@ router.post('/requestauth', async (req, res) => {
         authStrings.set(pseudonym, nacl.to_hex(random));
 
         res.status(200).json({
+            success: true,
             rand_string: encryptedRandomString,
         });
     } catch (e) {
@@ -77,6 +92,7 @@ router.post('/requestauth', async (req, res) => {
 });
 
 const authAttempts = new Map();
+const checkAuthAttempts = false; // For debug
 
 router.post('/verifyauth', async (req, res) => {
     const pseudonym: string = req.body.pseudonym;
@@ -87,7 +103,7 @@ router.post('/verifyauth', async (req, res) => {
         lastAttempt: number,
         numAttempts: number
     } = authAttempts.get(pseudonym);
-    if (attempts) {
+    if (checkAuthAttempts && attempts) {
         // New attempt
         authAttempts.set(pseudonym, {
             lastAttempt: Date.now(),

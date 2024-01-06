@@ -27,7 +27,7 @@ async function checkAuthToken(pseudonym: string, givenToken: string): Promise<bo
 }
 
 export async function verifyToken(req: Request, res: Response, next: NextFunction) {
-    if (req.path.includes('createidentity') || req.path.includes('requestauth') || req.path.includes('verifyauth')) {
+    if (req.path.includes('createidentity') || req.path.includes('requestauth') || req.path.includes('verifyauth') || req.path.includes('pseudonymavailable')) {
         return next();
     }
 
