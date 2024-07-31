@@ -8,11 +8,12 @@ const router = express.Router();
 router.use('/syc/client', verifyToken, clientRouter);
 router.use('/syc/server', serverRouter);
 
+router.get('/signup', (req, res) => {
+    res.render('signup');
+})
 
 router.get('/', (req, res) => {
-    res.send('hello world');
+    res.render('index');
 });
-
-
 
 export default router;

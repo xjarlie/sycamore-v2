@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create your identity - Sycamore</title>
+</head>
+<body>
+    
+    <input type="text" placeholder="Server address" id="serveraddress"/>
+    <input type="text" placeholder="Pseudonym (username)" id="pseudonym"/>
+    <button type="button" id="checkpseudonym" >Check availability</button>
+
+    <input type="password" placeholder="Password" id="password" />
+
+    <button type="button" id="createidentity">Create identity</button>
+
+    <span id="displaykeys"></span>
+
+    <script src="/public/nacl_factory.js"></script>
+    <script src="/public/crypt.js"></script>
+    <script>
+
+        document.querySelector('#checkpseudonym').onclick = async () => {
+            const serverAddress = document.querySelector('#serveraddress').value;
+            const pseudonym = document.querySelector('#pseudonym').value;
+
+            const response = await fetch(`${serverAddress}/syc/client/pseudonymavailable`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    pseudonym: pseudonym
+                })
+            });
+            const json = await response.json();
+            console.log(json.success, json.error);
+        }
+
+        document.querySelector('#createidentity').onclick = async () => {
+            const serverAddress = document.querySelector('#serveraddress').value;
+            const pseudonym = document.querySelector('#pseudonym').value;
+            const password = document.querySelector('#password').value;
+
+            // Generate seed
+
+            const seed = NACL.random_bytes(32);
+            const keypair = NACL.crypto_box_keypair_from_raw_sk(seed);
+            
+            const sk = NACL.to_hex(seed);
+            const pk = NACL.to_hex(keypair.boxPk);
+
+            console.log(sk, pk);
+            
+            const response = await fetch(`${serverAddress}/syc/client/createidentity`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    pseudonym: pseudonym,
+                    pkey: pk
+                })
+            });
+            const json = await response.json();
+            console.log(json);
+
+            if (json.success === true) {
+                NACL.crypto_hash_string(password);
+
+                //TODO: finish encrypting secret key with password hash and storing in localstorage
+            }
+
+        }
+
+    </script>
+
+</body>
+</html>
