@@ -50,8 +50,6 @@
             
             const sk = NACL.to_hex(seed);
             const pk = NACL.to_hex(keypair.boxPk);
-
-            console.log(sk, pk);
             
             const response = await fetch(`${serverAddress}/syc/client/createidentity`, {
                 method: 'POST',
@@ -67,8 +65,9 @@
             console.log(json);
 
             if (json.success === true) {
-                NACL.crypto_hash_string(password);
+                const hashed = NACL.to_hex(NACL.crypto_hash_string(password));
 
+                const cipherSk = NACL.crypto_stream()
                 //TODO: finish encrypting secret key with password hash and storing in localstorage
             }
 

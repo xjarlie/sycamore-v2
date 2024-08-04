@@ -75,4 +75,33 @@ async function decrypt() {
     
 
 }
-decrypt();
+//decrypt();
+
+async function secretKey() {
+    const nacl = await nacl_factory.instantiate(()=>0);
+
+    try {
+
+        const password = 'HELLO world';
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        const hashedPwd = nacl.crypto_hash_string(password);
+
+        console.log(nacl.to_hex(hashedPwd));
+
+        const sk = nacl.from_hex('2a3f42efa44e42ee394aae93030839a5cc53f2f3656316a18e47836c30dcd53e');
+
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+
+        const cipherSk = nacl.crypto_stream_xor(sk, nacl.crypto_stream_random_nonce(), hashedPwd);
+
+        console.log(cipherSk);
+
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+secretKey();
