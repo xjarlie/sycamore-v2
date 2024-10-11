@@ -44,7 +44,7 @@
             const password = document.querySelector('#password').value;
 
             // Generate seed
-
+            // TODO: consider using a human-readable passphrase for the secret key seed, so that it can be exported more easily (like they do in crypto wallets i think)
             const seed = NACL.random_bytes(32);
             const keypair = NACL.crypto_box_keypair_from_raw_sk(seed);
             
@@ -65,13 +65,26 @@
             console.log(json);
 
             if (json.success === true) {
-                const hashed = NACL.to_hex(NACL.crypto_hash_string(password));
+                const key = deriveKeyFromPassword(password);
 
-                const cipherSk = NACL.crypto_stream()
-                //TODO: finish encrypting secret key with password hash and storing in localstorage
+                // TODO: finish encrypting secret key with password and storing in localstorage
+                // for now just storing sk in localstorage as is - DO NOT PUBLISH THIS LMAO
+
+
+                // TODO: add section here for user to backup their secret key (after encryption ofc)
+
+
+                localStorage.setItem("sk", sk);
+
+                alert("Success: account created");
+
+                window.location.href = "/login";
+
             }
 
         }
+
+
 
     </script>
 
