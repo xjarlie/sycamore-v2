@@ -65,25 +65,30 @@
             console.log(json);
 
             if (json.success === true) {
-                const key = deriveKeyFromPassword(password);
+                const key = await deriveKeyFromPassword(password);
 
-                // TODO: finish encrypting secret key with password and storing in localstorage
-                // for now just storing sk in localstorage as is - DO NOT PUBLISH THIS LMAO
+                let { ciphertext, onetime } = await symEncrypt(sk, key);
+
+                ciphertext = NACL.to_hex(new Uint8Array(ciphertext));
+                onetime = NACL.to_hex(onetime);
+
+                localStorage.setItem("sk", ciphertext);
+                localStorage.setItem("skOnetime", onetime);
 
 
                 // TODO: add section here for user to backup their secret key (after encryption ofc)
 
 
-                localStorage.setItem("sk", sk);
 
                 alert("Success: account created");
 
-                window.location.href = "/login";
+                // TODO: do login ('initiate session') either by redirecting to login page or handling login logic below:
+
+                //window.location.href = "/login";
 
             }
 
         }
-
 
 
     </script>
