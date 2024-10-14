@@ -22,8 +22,10 @@
     <script>
 
         document.querySelector('#checkpseudonym').onclick = async () => {
-            const serverAddress = document.querySelector('#serveraddress').value;
-            const pseudonym = document.querySelector('#pseudonym').value;
+            const serverAddress = document.querySelector('#serveraddress').value.trim();
+            const pseudonym = document.querySelector('#pseudonym').value.trim();
+
+            // TODO: client-side validation of address&pseudonym
 
             const response = await fetch(`${serverAddress}/syc/client/pseudonymavailable`, {
                 method: 'POST',
@@ -42,6 +44,9 @@
             const serverAddress = document.querySelector('#serveraddress').value;
             const pseudonym = document.querySelector('#pseudonym').value;
             const password = document.querySelector('#password').value;
+
+            // TODO: repeat client-side validation of address, pseudonym and password
+            // TODO: do the whole http/https thing with the address
 
             // Generate seed
             // TODO: consider using a human-readable passphrase for the secret key seed, so that it can be exported more easily (like they do in crypto wallets i think)
@@ -65,26 +70,75 @@
             console.log(json);
 
             if (json.success === true) {
-                const key = await deriveKeyFromPassword(password);
+                const key = await deriveKeyFromPassword(password, pseudonym);
 
                 let { ciphertext, onetime } = await symEncrypt(sk, key);
 
                 ciphertext = NACL.to_hex(new Uint8Array(ciphertext));
                 onetime = NACL.to_hex(onetime);
 
+                // Store encrypted secret key long-term
                 localStorage.setItem("sk", ciphertext);
                 localStorage.setItem("skOnetime", onetime);
 
+                sessionStorage.setItem("sk", sk); // store unencrypted key for use during session
 
-                // TODO: add section here for user to backup their secret key (after encryption ofc)
+                // Store identity for use during session and easier login in future
+                localStorage.setItem("pseudonym", pseudonym);
+                localStorage.setItem("serverAddress", serverAddress)
 
-
+                // TODO: add section here for user to backup their secret key
 
                 alert("Success: account created");
 
-                // TODO: do login ('initiate session') either by redirecting to login page or handling login logic below:
 
-                //window.location.href = "/login";
+                // Login:
+
+                const requestAuthResponse = await fetch(`${serverAddress}/syc/client/requestauth`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        pseudonym: pseudonym
+                    })
+                });
+                const reqAuthJson = await requestAuthResponse.json();
+
+                if (reqAuthJson.success === false) {
+                    console.warn(reqAuthJson.error);
+                    alert('Error: ' + reqAuthJson.error.code);
+                    return;
+                }
+
+                const strToDecrypt = reqAuthJson.rand_string;
+                const decrypted = NACL.crypto_box_seal_open(NACL.from_hex(strToDecrypt), NACL.from_hex(pk), NACL.from_hex(sk));
+                const decrStr = NACL.to_hex(decrypted);
+
+                const verifyAuthResponse = await fetch(`${serverAddress}/syc/client/verifyauth`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        pseudonym: pseudonym,
+                        decrypt_string: decrStr
+                    })
+                });
+                const verifyAuthJson = await verifyAuthResponse.json();
+
+                if (verifyAuthJson.success === false) {
+                    console.warn(verifyAuthJson.error);
+                    alert('Error: ' + verifyAuthJson.error.code);
+                    return;
+                }
+
+                // Store temporary authentication token
+                const authToken = verifyAuthJson.auth_token;
+                localStorage.setItem('authToken', authToken); // using localstorage is fine as expiration is handled server-side
+
+                // Logged in!
+                console.log("Login successful");
 
             }
 

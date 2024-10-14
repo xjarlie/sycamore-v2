@@ -33,7 +33,7 @@ async function symDecrypt(cipher, key, onetime) {
     );
 }
 
-async function deriveKeyFromPassword(password) {
+async function deriveKeyFromPassword(password, salt = "SALT") {
 
     const encoded = (new TextEncoder()).encode(password);
 
@@ -48,7 +48,7 @@ async function deriveKeyFromPassword(password) {
     return await window.crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
-            salt: (new TextEncoder()).encode("SALT"),
+            salt: (new TextEncoder()).encode(salt),
             iterations: 100000,
             hash: "SHA-256"
         },

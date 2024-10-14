@@ -48,3 +48,5 @@ const instructions = {
     },
     chataesthetics: {}
 }
+
+// TODO: handle auxiliary messages lol

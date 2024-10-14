@@ -19,7 +19,7 @@ router.post('/createidentity', async (req, res) => {
 
     // PSEUDONYM VALIDATION
     if (pseudonym.length < 3 || pseudonym.length > 32) return sycError(res, 'A004', 'Pseudonym out of bounds');
-    if (pseudonym.includes('~') || pseudonym.includes('@') || pseudonym.includes(',') || pseudonym.includes(':') || pseudonym.includes('=')) return sycError(res, 'A004', 'Pseudonym includes illegal characters');
+    if (pseudonym.includes('~') || pseudonym.includes('@') || pseudonym.includes(',') || pseudonym.includes(':') || pseudonym.includes('=') || pseudonym.includes(" ")) return sycError(res, 'A004', 'Pseudonym includes illegal characters');
     if (await db.get(`/users/${pseudonym}`)) return sycError(res, 'A002');
 
     // TODO: KEYPAIR VALIDATION
